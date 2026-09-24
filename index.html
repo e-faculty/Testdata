@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pemetaan Matriks GRITT (Portal Admin)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SheetJS for Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar, .table-container::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track, .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb, .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover, .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Dropdown transition */
+        .dropdown-menu { display: none; opacity: 0; transform: translateY(-10px); transition: all 0.2s ease-in-out; }
+        .dropdown-menu.show { display: block; opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- NAVIGATION BAR -->
+    <nav class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-[1400px] mx-auto px-4 flex justify-between items-center h-16">
+            <div class="flex items-center gap-3 font-bold text-lg tracking-wide">
+                <i data-lucide="shield-check" class="w-6 h-6 text-indigo-400"></i>
+                GRITT Nexus <span class="text-indigo-400 font-light">| Portal Admin</span>
+            </div>
+            <div class="text-sm text-slate-400 font-medium hidden md:block">
+                Sistem Pemetaan & Blueprint Kurikulum
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-[1400px] mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- SMART HEADER ADMIN -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">Pusat Pemetaan Program & Aktiviti</h1>
+                <p class="text-sm text-slate-500 mt-1">Bina Blueprint kurikulum Matriks untuk dipatuhi dan dipilih oleh pelajar.</p>
+            </div>
+            
+            <!-- Action Buttons Grouping -->
+            <div class="flex flex-wrap items-center gap-3">
+                
+                <button onclick="toggleAdminView('list')" id="btn-admin-list" class="px-5 py-2.5 bg-indigo-50 border border-indigo-200 shadow-sm rounded-lg text-sm font-bold text-indigo-700 transition-colors flex items-center gap-2">
+                    <i data-lucide="list" class="w-4 h-4"></i> Senarai Katalog
+                </button>
+                <button onclick="toggleAdminView('matrix')" id="btn-admin-matrix" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold transition-colors flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> Blueprint Visual
+                </button>
+
+                <div class="h-8 w-px bg-slate-200 hidden md:block mx-1"></div>
+
+                <!-- Dropdown for Data Management Admin -->
+                <div class="relative">
+                    <button onclick="toggleDropdown('admin-data-dropdown')" class="flex items-center gap-2 px-4 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 text-sm font-medium shadow-md transition-transform hover:-translate-y-0.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+                        <i data-lucide="database" class="w-4 h-4"></i> Pengurusan Data <i data-lucide="chevron-down" class="w-3 h-3 ml-1 opacity-70"></i>
+                    </button>
+                    
+                    <div id="admin-data-dropdown" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-100 z-50 overflow-hidden">
+                        <div class="p-2 space-y-1">
+                            <div class="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Awan (G-Sheet)</div>
+                            <button onclick="saveAdminToGSheet(); toggleDropdown('admin-data-dropdown')" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 rounded-md transition-colors">
+                                <i data-lucide="cloud-upload" class="w-4 h-4 text-emerald-600"></i> Simpan Blueprint
+                            </button>
+                            <button onclick="loadAdminFromGSheet(); toggleDropdown('admin-data-dropdown')" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-700 rounded-md transition-colors">
+                                <i data-lucide="cloud-download" class="w-4 h-4 text-purple-600"></i> Tarik Data (Sync)
+                            </button>
+                            
+                            <div class="border-t border-slate-100 my-1"></div>
+                            <div class="px-3 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">Fail Tempatan (Excel)</div>
+                            
+                            <button onclick="downloadAdminExcel(); toggleDropdown('admin-data-dropdown')" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-green-50 hover:text-green-700 rounded-md transition-colors">
+                                <i data-lucide="download" class="w-4 h-4 text-[#107c41]"></i> Eksport Katalog
+                            </button>
+                            <button onclick="document.getElementById('admin-file-upload').click(); toggleDropdown('admin-data-dropdown')" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors">
+                                <i data-lucide="upload" class="w-4 h-4 text-blue-600"></i> Muat Naik Excel
+                            </button>
+                            <input type="file" id="admin-file-upload" accept=".xlsx, .xls" class="hidden" onchange="uploadAdminExcel(event)">
+                            
+                            <div class="border-t border-slate-100 my-1"></div>
+                            
+                            <button onclick="clearAdminData(); toggleDropdown('admin-data-dropdown')" class="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i> Kosongkan Pangkalan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: SENARAI KATALOG (FORM & TABLE)     -->
+        <!-- ========================================== -->
+        <div id="admin-view-list" class="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in block">
+            
+            <!-- LEFT PANEL: INPUT FORM -->
+            <div class="lg:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col sticky top-24" style="height: fit-content;">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i data-lucide="plus-square" class="w-5 h-5 text-indigo-600"></i> Tambah Program</h2>
+                    <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-semibold border border-indigo-100">Kalkulator Aktif</span>
+                </div>
+                
+                <form id="admin-form" class="space-y-4 flex-1">
+                    <input type="hidden" id="admin-edit-id" value="">
+                    
+                    <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                        <label class="block text-sm font-semibold text-indigo-900 mb-1">Sasaran Tahun Pengajian (Blueprint) <span class="text-red-500">*</span></label>
+                        <select id="admin-prog-tahun" class="w-full border border-indigo-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-indigo-800 bg-white shadow-sm">
+                            <option value="Semua Tahun">- Terbuka / Semua Tahun -</option>
+                            <option value="Tahun 1">Tahun 1 (Asas & Orientasi)</option>
+                            <option value="Tahun 2">Tahun 2 (Sahsiah)</option>
+                            <option value="Tahun 3">Tahun 3 (Pimpinan)</option>
+                            <option value="Tahun 4">Tahun 4 (Jaringan)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Nama Program <span class="text-red-500">*</span></label>
+                        <input type="text" id="admin-prog-name" required class="w-full border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Cth: Pertandingan Inovasi">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Penganjur</label>
+                        <input type="text" id="admin-prog-org" class="w-full border border-slate-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Cth: FSKTM / Kelab Kaunseling">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Peringkat</label>
+                            <select id="admin-prog-level" onchange="autoCalculateAdminPoints()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="Kolej / Kelab" data-base="5">Kolej / Kelab</option>
+                                <option value="Fakulti" data-base="10">Fakulti</option>
+                                <option value="Universiti" data-base="15" selected>Universiti</option>
+                                <option value="Kebangsaan" data-base="25">Kebangsaan</option>
+                                <option value="Antarabangsa" data-base="40">Antarabangsa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Peranan Maksimum</label>
+                            <select id="admin-prog-role" onchange="autoCalculateAdminPoints()" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="Peserta" data-mult="1">Peserta</option>
+                                <option value="AJK" data-mult="1.5">AJK</option>
+                                <option value="Ketua / Pengarah" data-mult="2" selected>Ketua / Pengarah</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Elemen GRITT <span class="text-red-500">*</span></label>
+                            <select id="admin-prog-gritt-1" required class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-indigo-700">
+                                <option value="GLOBAL">🌐 GLOBAL (G)</option>
+                                <option value="RESILIENCE">🛡️ RESILIENCE (R)</option>
+                                <option value="INNOVATIVE">💡 INNOVATIVE (I)</option>
+                                <option value="TRUSTWORTHY">🤝 TRUSTWORTHY (T)</option>
+                                <option value="TALENT">⭐ TALENT (T)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 items-end">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1">Pemetaan SDG</label>
+                            <select id="admin-prog-sdg" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="Tiada">- Tiada -</option>
+                                <option value="SDG 1">SDG 1: Tiada Kemiskinan</option>
+                                <option value="SDG 3">SDG 3: Kesihatan & Kesejahteraan</option>
+                                <option value="SDG 4">SDG 4: Pendidikan Berkualiti</option>
+                                <option value="SDG 9">SDG 9: Inovasi & Infrastruktur</option>
+                                <option value="SDG 13">SDG 13: Tindakan Iklim</option>
+                                <option value="SDG 16">SDG 16: Keamanan & Keadilan</option>
+                                <option value="SDG 17">SDG 17: Kerjasama</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1 text-center">Merit Cadangan</label>
+                            <input type="number" id="admin-prog-points" class="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500 text-center font-bold text-amber-600 bg-amber-50" value="30">
+                        </div>
+                    </div>
+                    
+                    <div class="pt-4 flex gap-2">
+                        <button type="button" onclick="resetAdminForm()" class="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors">Batal</button>
+                        <button type="button" onclick="saveAdminProgram()" class="flex-[2] py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex justify-center items-center gap-2 shadow-sm transition-colors"><i data-lucide="save" class="w-4 h-4"></i> Simpan Katalog</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- RIGHT PANEL: STATS & TABLE -->
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                
+                <!-- Analytics Top Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="lg:col-span-2 flex flex-col gap-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <p class="text-xs font-semibold text-slate-500 uppercase">Total Program</p>
+                                <h3 class="text-2xl font-black text-slate-800 mt-1" id="admin-stat-total">0</h3>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <p class="text-xs font-semibold text-slate-500 uppercase">Elemen Dominan</p>
+                                <h3 class="text-xl font-black text-indigo-600 mt-1 line-clamp-1" id="admin-stat-dominant">-</h3>
+                            </div>
+                        </div>
+                        <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100 flex items-center gap-3 flex-1">
+                            <i data-lucide="info" class="w-6 h-6 text-amber-600 shrink-0"></i>
+                            <p class="text-sm text-amber-800 leading-snug">Gunakan tab <strong>Blueprint Visual</strong> di atas untuk melihat susun atur program mengikut sasaran tahun yang akan dipaparkan secara automatik kepada pelajar.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Radar Chart -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center min-h-[180px]">
+                        <h3 class="text-xs font-bold text-slate-500 w-full text-center mb-1 uppercase tracking-wider">Taburan Merit Pemetaan</h3>
+                        <div class="w-full max-w-[160px] aspect-square relative">
+                            <canvas id="adminRadarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <h2 class="text-sm font-bold text-slate-800">Senarai Katalog Semasa</h2>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar flex-1 max-h-[600px] relative">
+                        <table class="w-full text-left border-collapse min-w-[750px]">
+                            <thead class="bg-slate-100 sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 text-xs font-bold text-slate-600 uppercase">Maklumat Program</th>
+                                    <th class="p-3 text-xs font-bold text-slate-600 uppercase text-center">Tahun Sasaran</th>
+                                    <th class="p-3 text-xs font-bold text-slate-600 uppercase text-center">Elemen</th>
+                                    <th class="p-3 text-xs font-bold text-slate-600 uppercase text-center">Merit</th>
+                                    <th class="p-3 text-xs font-bold text-slate-600 uppercase text-center w-24">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-catalog-body" class="divide-y divide-slate-200">
+                                <!-- Data injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: BLUEPRINT MATRIKS VISUAL           -->
+        <!-- ========================================== -->
+        <div id="admin-view-matrix" class="hidden animate-fade-in">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-1 mb-4">
+                 <div class="bg-slate-800 text-white p-4 flex items-center justify-between rounded-t-lg">
+                     <div>
+                        <h2 class="font-bold text-lg flex items-center gap-2"><i data-lucide="map" class="w-5 h-5"></i> Blueprint Matriks Universiti</h2>
+                        <p class="text-xs text-slate-300 mt-1">Panduan ini akan digunapakai oleh pelajar. Pelajar hanya akan mengikut dan memilih program berdasarkan pemetaan di bawah.</p>
+                     </div>
+                 </div>
+                 <div class="overflow-x-auto table-container">
+                    <table class="w-full text-left border-collapse min-w-[1200px]" id="admin-matrix-table">
+                        <thead>
+                            <tr id="admin-matrix-header"></tr>
+                        </thead>
+                        <tbody id="admin-matrix-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SCRIPTS                                    -->
+    <!-- ========================================== -->
+    <script>
+        // --- GLOBAL CONFIG ---
+        // Gantikan dengan URL Web App Apps Script anda sendiri
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbytQxIvsGt_4xi8yUFUww3jNWmsiF2VbbYv5MRb6fzGJKZE_VrnPcAO1AchIha8iuIBdQ/exec";
+        
+        const grittColors = { 'GLOBAL': 'blue', 'RESILIENCE': 'orange', 'INNOVATIVE': 'purple', 'TRUSTWORTHY': 'emerald', 'TALENT': 'rose' };
+        const grittCols = [
+            { key: 'global', label: 'GLOBAL', color: 'bg-blue-500', icon: 'globe' },
+            { key: 'resilience', label: 'RESILIENCE', color: 'bg-orange-500', icon: 'shield' },
+            { key: 'innovative', label: 'INNOVATIVE', color: 'bg-purple-500', icon: 'lightbulb' },
+            { key: 'trustworthy', label: 'TRUSTWORTHY', color: 'bg-emerald-500', icon: 'heart-handshake' },
+            { key: 'talent', label: 'TALENT', color: 'bg-rose-500', icon: 'star' }
+        ];
+
+        let adminCatalog = [];
+        let adminChart = null;
+
+        // --- INIT ---
+        function init() {
+            lucide.createIcons();
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(event) {
+                const dropdowns = document.querySelectorAll('.dropdown-menu.show');
+                dropdowns.forEach(menu => {
+                    if (!menu.parentElement.contains(event.target)) {
+                        menu.classList.remove('show');
+                    }
+                });
+            });
+
+            const savedAdmin = localStorage.getItem('hepGrittProgramCatalog');
+            if(savedAdmin) {
+                adminCatalog = JSON.parse(savedAdmin);
+            } else {
+                // Dummy Data for Preview
+                adminCatalog = [
+                    { id: 'prog-1', tahun: 'Tahun 1', name: 'Webinar Kesedaran Global', org: 'FSKTM', level: 'Fakulti', role: 'Peserta', gritt1: 'GLOBAL', sdg: 'SDG 4', points: 5 },
+                    { id: 'prog-2', tahun: 'Tahun 1', name: 'Kem Bina Semangat Siswa', org: 'HEP', level: 'Universiti', role: 'Peserta', gritt1: 'RESILIENCE', sdg: 'Tiada', points: 15 },
+                    { id: 'prog-3', tahun: 'Tahun 2', name: 'Pertandingan Inovasi Rekacipta', org: 'Kelab Robotik', level: 'Fakulti', role: 'Ketua / Pengarah', gritt1: 'INNOVATIVE', sdg: 'SDG 9', points: 30 }
+                ];
+            }
+
+            renderAdminTable();
+            renderAdminMatrix();
+        }
+
+        // --- UI TOGGLES ---
+        function toggleAdminView(view) {
+            const btnList = document.getElementById('btn-admin-list');
+            const btnMatrix = document.getElementById('btn-admin-matrix');
+            const viewList = document.getElementById('admin-view-list');
+            const viewMatrix = document.getElementById('admin-view-matrix');
+            
+            const activeClass = "px-5 py-2.5 bg-indigo-50 border border-indigo-200 shadow-sm rounded-lg text-sm font-bold text-indigo-700 transition-colors flex items-center gap-2";
+            const inactiveClass = "px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-bold transition-colors flex items-center gap-2";
+
+            if(view === 'list') {
+                btnList.className = activeClass; btnMatrix.className = inactiveClass;
+                viewList.classList.remove('hidden'); viewList.classList.add('grid');
+                viewMatrix.classList.add('hidden'); viewMatrix.classList.remove('block');
+            } else {
+                btnMatrix.className = activeClass; btnList.className = inactiveClass;
+                viewMatrix.classList.remove('hidden'); viewMatrix.classList.add('block');
+                viewList.classList.add('hidden'); viewList.classList.remove('grid'); 
+                renderAdminMatrix();
+            }
+        }
+
+        function toggleDropdown(id) {
+            const menu = document.getElementById(id);
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+            } else {
+                document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+                menu.classList.add('show');
+            }
+        }
+
+        // --- CORE FORM LOGIC ---
+        function autoCalculateAdminPoints() {
+            const l = document.getElementById('admin-prog-level');
+            const r = document.getElementById('admin-prog-role');
+            const b = parseInt(l.options[l.selectedIndex].dataset.base);
+            const m = parseFloat(r.options[r.selectedIndex].dataset.mult);
+            let pts = Math.round(b * m);
+            if((l.value === 'Kebangsaan' || l.value === 'Antarabangsa') && r.value === 'Ketua / Pengarah') pts += 10; // Bonus
+            document.getElementById('admin-prog-points').value = pts;
+        }
+
+        function saveAdminProgram() {
+            const id = document.getElementById('admin-edit-id').value; 
+            const name = document.getElementById('admin-prog-name').value.trim(); 
+            if(!name) { showToast("Sila masukkan nama program.", "error"); return; }
+            
+            const prog = { 
+                id: id || `prog-${Date.now()}`, 
+                tahun: document.getElementById('admin-prog-tahun').value, 
+                name: name, 
+                org: document.getElementById('admin-prog-org').value || 'Tiada', 
+                level: document.getElementById('admin-prog-level').value, 
+                role: document.getElementById('admin-prog-role').value, 
+                gritt1: document.getElementById('admin-prog-gritt-1').value, 
+                sdg: document.getElementById('admin-prog-sdg').value, 
+                points: parseInt(document.getElementById('admin-prog-points').value) || 0 
+            };
+            
+            if(id) { 
+                const idx = adminCatalog.findIndex(p => p.id === id); 
+                if(idx > -1) adminCatalog[idx] = prog; 
+            } else {
+                adminCatalog.push(prog);
+            }
+            
+            saveData(); 
+            renderAdminTable(); 
+            renderAdminMatrix(); 
+            resetAdminForm(); 
+            showToast("Katalog & Blueprint Disimpan", "success");
+        }
+        
+        function editAdminProgram(id) { 
+            const p = adminCatalog.find(x => x.id === id); 
+            if(!p) return; 
+            
+            document.getElementById('admin-edit-id').value = p.id; 
+            document.getElementById('admin-prog-tahun').value = p.tahun || 'Semua Tahun'; 
+            document.getElementById('admin-prog-name').value = p.name; 
+            document.getElementById('admin-prog-org').value = p.org || ''; 
+            document.getElementById('admin-prog-level').value = p.level; 
+            document.getElementById('admin-prog-role').value = p.role; 
+            document.getElementById('admin-prog-gritt-1').value = p.gritt1; 
+            document.getElementById('admin-prog-sdg').value = p.sdg || 'Tiada'; 
+            document.getElementById('admin-prog-points').value = p.points; 
+            
+            document.getElementById('admin-form').scrollIntoView({ behavior: 'smooth' }); 
+        }
+        
+        function deleteAdminProgram(id) { 
+            if(!confirm("Padam program ini dari katalog & blueprint?")) return; 
+            adminCatalog = adminCatalog.filter(p => p.id !== id); 
+            saveData(); 
+            renderAdminTable(); 
+            renderAdminMatrix(); 
+            showToast("Program Dipadam", "error"); 
+        }
+        
+        function resetAdminForm() { 
+            document.getElementById('admin-form').reset(); 
+            document.getElementById('admin-edit-id').value = ''; 
+            autoCalculateAdminPoints(); 
+            document.getElementById('admin-prog-tahun').value = 'Semua Tahun'; 
+        }
+
+        function setAdminFormPreselect(tahun, gritt1) { 
+            document.getElementById('admin-form').scrollIntoView({ behavior: 'smooth' }); 
+            document.getElementById('admin-prog-tahun').value = tahun; 
+            document.getElementById('admin-prog-gritt-1').value = gritt1; 
+            document.getElementById('admin-prog-name').focus(); 
+        }
+
+        function saveData() {
+            localStorage.setItem('hepGrittProgramCatalog', JSON.stringify(adminCatalog));
+        }
+        
+        function clearAdminData() { 
+            if(confirm("AMARAN: Padam SEMUA Katalog & Blueprint Admin? Tindakan tidak boleh diundur.")) { 
+                adminCatalog = []; 
+                saveData(); 
+                renderAdminTable(); 
+                renderAdminMatrix(); 
+                showToast('Pangkalan Data Dikosongkan', 'error'); 
+            } 
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderAdminTable() {
+            const tbody = document.getElementById('admin-catalog-body'); 
+            tbody.innerHTML = '';
+            
+            let elementPoints = { 'GLOBAL': 0, 'RESILIENCE': 0, 'INNOVATIVE': 0, 'TRUSTWORTHY': 0, 'TALENT': 0 };
+            
+            if(adminCatalog.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 bg-slate-50 italic">Tiada program dipetakan.</td></tr>`;
+            }
+            
+            adminCatalog.forEach((prog) => {
+                elementPoints[prog.gritt1] = (elementPoints[prog.gritt1] || 0) + (prog.points || 0);
+                
+                const tr = document.createElement('tr'); 
+                tr.className = "hover:bg-slate-50 bg-white group transition-colors";
+                const badgeColor = `bg-${grittColors[prog.gritt1]}-50 text-${grittColors[prog.gritt1]}-700 border-${grittColors[prog.gritt1]}-200`;
+                
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <div class="font-bold text-sm text-slate-800 line-clamp-2">${prog.name}</div>
+                        <div class="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                            <span class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 line-clamp-1 max-w-[120px]"><i data-lucide="building" class="w-3 h-3 inline"></i> ${prog.org}</span>
+                            <span class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${prog.level}</span>
+                        </div>
+                    </td>
+                    <td class="p-3 text-center"><span class="text-xs px-2 py-1 bg-slate-100 rounded-md text-slate-700 font-semibold border border-slate-200 whitespace-nowrap">${prog.tahun || 'Semua Tahun'}</span></td>
+                    <td class="p-3 text-center"><span class="text-[10px] px-2 py-0.5 rounded-md border font-bold ${badgeColor} whitespace-nowrap">${prog.gritt1}</span></td>
+                    <td class="p-3 text-center"><span class="bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-black text-sm border border-amber-200">${prog.points || 0}</span></td>
+                    <td class="p-3 text-center">
+                        <div class="flex items-center justify-center gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editAdminProgram('${prog.id}')" class="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors" title="Edit"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                            <button onclick="deleteAdminProgram('${prog.id}')" class="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors" title="Padam"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+            
+            document.getElementById('admin-stat-total').innerText = adminCatalog.length;
+            
+            let maxP = -1, dom = '-';
+            for (const [e, p] of Object.entries(elementPoints)) { 
+                if (p > maxP) { maxP = p; dom = e; } 
+            }
+            document.getElementById('admin-stat-dominant').innerText = maxP > 0 ? dom : '-';
+            
+            updateRadarChart(elementPoints);
+        }
+
+        function renderAdminMatrix() {
+            const head = document.getElementById('admin-matrix-header');
+            head.innerHTML = `<th class="bg-slate-900 text-white p-4 font-semibold w-56 border-r border-slate-700 align-top rounded-tl-lg">SASARAN (BLUEPRINT)</th>`;
+            
+            grittCols.forEach((col, idx) => { 
+                let rounded = idx === grittCols.length - 1 ? 'rounded-tr-lg' : '';
+                head.innerHTML += `<th class="${col.color} text-white p-4 font-semibold text-center border-r border-white/20 min-w-[260px] align-top ${rounded}"><div class="flex flex-col items-center gap-1"><i data-lucide="${col.icon}" class="w-5 h-5 mb-1 opacity-90"></i>${col.label}</div></th>`; 
+            });
+            
+            const tbody = document.getElementById('admin-matrix-body'); 
+            tbody.innerHTML = '';
+            const tahunList = ['Tahun 1', 'Tahun 2', 'Tahun 3', 'Tahun 4'];
+            
+            tahunList.forEach((tahun, index) => {
+                const tr = document.createElement('tr'); 
+                tr.className = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50 hover:bg-slate-50 transition-colors';
+                
+                let rowHtml = `<td class="p-4 border-b border-r border-slate-200 align-top"><div class="font-black text-xl mb-1 text-slate-800">${tahun}</div></td>`;
+                
+                grittCols.forEach(col => {
+                    const matchedProgs = adminCatalog.filter(p => (p.tahun === tahun || p.tahun === 'Semua Tahun') && p.gritt1.toLowerCase() === col.key);
+                    let itemsHtml = '<div class="space-y-3">';
+                    
+                    if (matchedProgs.length === 0) {
+                        itemsHtml += `<div class="text-slate-300 text-center py-4 border-2 border-dashed border-slate-100 rounded-xl text-sm italic">Kosong</div>`;
+                    } else {
+                        matchedProgs.forEach(prog => {
+                            const badgeColor = `bg-${grittColors[prog.gritt1]}-50 text-${grittColors[prog.gritt1]}-700 border-${grittColors[prog.gritt1]}-200`;
+                            itemsHtml += `
+                                <div class="relative bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-indigo-300 transition-all flex flex-col gap-1.5 group/item hover:shadow-md">
+                                    <div class="flex justify-between items-start gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800 leading-tight line-clamp-2">${prog.name}</h4>
+                                        <span class="shrink-0 bg-amber-50 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-amber-200 shadow-sm"><i data-lucide="star" class="w-3 h-3 fill-amber-500 text-amber-500"></i>${prog.points||0}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1 mt-1 text-[9px] text-slate-500">
+                                        <span class="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${prog.level}</span>
+                                        ${prog.tahun === 'Semua Tahun' ? '<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded border border-indigo-100 font-bold flex items-center gap-1"><i data-lucide="globe-2" class="w-2.5 h-2.5"></i>Terbuka</span>' : ''}
+                                    </div>
+                                    <button onclick="editAdminProgram('${prog.id}'); toggleAdminView('list')" class="absolute -top-2 -right-2 bg-indigo-100 text-indigo-700 rounded-full p-1.5 shadow-md transform scale-75 hover:scale-100 hover:bg-indigo-600 hover:text-white transition-all z-10 opacity-0 group-hover/item:opacity-100" title="Kemaskini Program"><i data-lucide="edit-2" class="w-3 h-3"></i></button>
+                                </div>`;
+                        });
+                    }
+                    itemsHtml += `</div><div class="mt-3"><button onclick="setAdminFormPreselect('${tahun}', '${col.key.toUpperCase()}'); toggleAdminView('list')" class="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] font-bold text-indigo-500 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 border-dashed rounded-lg transition-colors"><i data-lucide="plus" class="w-3 h-3"></i> Tambah Program</button></div>`;
+                    rowHtml += `<td class="p-4 border-b border-r border-slate-200 align-top min-w-[260px] bg-slate-50/30">${itemsHtml}</td>`;
+                });
+                tr.innerHTML = rowHtml; 
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function updateRadarChart(dataObj) {
+            const ctx = document.getElementById('adminRadarChart').getContext('2d');
+            const dataVals = [dataObj['GLOBAL'], dataObj['RESILIENCE'], dataObj['INNOVATIVE'], dataObj['TRUSTWORTHY'], dataObj['TALENT']];
+            
+            if(adminChart) adminChart.destroy();
+            
+            adminChart = new Chart(ctx, {
+                type: 'radar',
+                data: { 
+                    labels: ['GLOBAL', 'RESILIENCE', 'INNO', 'TRUST', 'TALENT'], 
+                    datasets: [{ 
+                        label: 'Merit', 
+                        data: dataVals, 
+                        fill: true, 
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)', 
+                        borderColor: 'rgba(79, 70, 229, 1)', 
+                        pointBackgroundColor: 'rgba(79, 70, 229, 1)', 
+                        borderWidth: 2 
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        r: { 
+                            min: 0, 
+                            suggestedMax: Math.max(...dataVals) > 0 ? Math.max(...dataVals) : 5, 
+                            ticks: { display: false }, 
+                            pointLabels: { font: { size: 9, family: 'Inter', weight: 'bold' }, color: '#475569' } 
+                        } 
+                    }, 
+                    plugins: { legend: { display: false } } 
+                }
+            });
+        }
+
+        // --- DATA SYNC (EXCEL & GSHEET) ---
+        function downloadAdminExcel() {
+            if(adminCatalog.length === 0) return showToast("Tiada katalog untuk dieksport", "error");
+            
+            const exportData = adminCatalog.map((p, index) => ({ 
+                'BIL': index + 1, 
+                'NAMA PROGRAM': p.name, 
+                'PENGANJUR': p.org, 
+                'TAHUN SASARAN': p.tahun || 'Semua Tahun', 
+                'PERINGKAT': p.level, 
+                'PERANAN': p.role, 
+                'ELEMEN UTAMA': p.gritt1, 
+                'SDG': p.sdg, 
+                'MERIT': p.points 
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(exportData); 
+            const wb = XLSX.utils.book_new();
+            
+            ws['!cols'] = [{wch:5}, {wch:40}, {wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:15}, {wch:15}, {wch:10}];
+            
+            XLSX.utils.book_append_sheet(wb, ws, "Katalog_Pemetaan"); 
+            XLSX.writeFile(wb, "Katalog_Pemetaan_Admin.xlsx");
+            showToast('Katalog berjaya dieksport', 'success');
+        }
+
+        function uploadAdminExcel(event) {
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result); 
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+                    
+                    let addedCount = 0;
+                    jsonData.forEach((row, index) => {
+                        const nama = row['NAMA PROGRAM'];
+                        if (nama && nama.toString().trim() !== '') {
+                            adminCatalog.push({ 
+                                id: `prog-xl-${Date.now()}-${index}`, 
+                                name: nama.toString().trim(), 
+                                org: row['PENGANJUR'] || 'Tiada', 
+                                tahun: row['TAHUN SASARAN'] || 'Semua Tahun', 
+                                level: row['PERINGKAT'] || 'Universiti', 
+                                role: row['PERANAN'] || 'Peserta', 
+                                gritt1: row['ELEMEN UTAMA'] || 'GLOBAL', 
+                                sdg: row['SDG'] || 'Tiada', 
+                                points: parseInt(row['MERIT']) || parseInt(row['CADANGAN MERIT']) || 0 
+                            });
+                            addedCount++;
+                        }
+                    });
+                    
+                    if (addedCount > 0) { 
+                        saveData(); 
+                        renderAdminTable(); 
+                        renderAdminMatrix(); 
+                        showToast(`${addedCount} program dimuat naik!`); 
+                    } else {
+                        showToast("Format fail Excel tidak sah.", "error");
+                    }
+                } catch (error) { 
+                    showToast("Ralat membaca fail Excel.", "error"); 
+                }
+            }; 
+            reader.readAsArrayBuffer(file); 
+            event.target.value = '';
+        }
+
+        async function saveAdminToGSheet() {
+            if(adminCatalog.length === 0) return showToast('Katalog Kosong', 'error');
+            
+            const flatData = adminCatalog.map((p, i) => ({
+                'BIL': i+1, 
+                'NAMA PROGRAM': p.name, 
+                'PENGANJUR': p.org, 
+                'TAHUN SASARAN': p.tahun || 'Semua Tahun', 
+                'PERINGKAT': p.level, 
+                'PERANAN': p.role, 
+                'ELEMEN UTAMA': p.gritt1, 
+                'SDG': p.sdg, 
+                'MERIT': p.points
+            }));
+            
+            showToast('Menghantar Blueprint ke G-Sheet...');
+            try {
+                const res = await fetch(GOOGLE_SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ action: "saveToSheet", sheetName: "Katalog_Pemetaan_Admin", data: flatData }) 
+                });
+                const json = await res.json();
+                if(json.status === "success") {
+                    showToast('Blueprint Berjaya Disimpan di Awan!'); 
+                } else {
+                    throw new Error();
+                }
+            } catch(e) { 
+                showToast('Ralat sambungan G-Sheet', 'error'); 
+            }
+        }
+
+        async function loadAdminFromGSheet() {
+            if(!confirm("Tarik Katalog dari G-Sheet? Ia akan menggantikan jadual semasa.")) return;
+            
+            showToast('Menarik Katalog dari Awan...');
+            try {
+                const res = await fetch(GOOGLE_SCRIPT_URL + "?action=getKatalog&sheetName=Katalog_Pemetaan_Admin");
+                const json = await res.json();
+                
+                if(json.status === "success" && json.data) {
+                    adminCatalog = [];
+                    json.data.forEach((row, idx) => { 
+                        if(row['NAMA PROGRAM']) {
+                            adminCatalog.push({ 
+                                id: `p-gs-${Date.now()}-${idx}`, 
+                                name: row['NAMA PROGRAM'], 
+                                org: row['PENGANJUR'] || '', 
+                                tahun: row['TAHUN SASARAN'] || 'Semua Tahun', 
+                                level: row['PERINGKAT'] || 'Universiti', 
+                                role: row['PERANAN'] || 'Peserta', 
+                                gritt1: row['ELEMEN UTAMA'] || 'GLOBAL', 
+                                sdg: row['SDG'] || 'Tiada', 
+                                points: parseInt(row['MERIT']) || 0 
+                            }); 
+                        }
+                    });
+                    saveData(); 
+                    renderAdminTable(); 
+                    renderAdminMatrix(); 
+                    showToast('Katalog Admin Dikemaskini dari Awan!');
+                }
+            } catch(e) { 
+                showToast('Ralat G-Sheet', 'error'); 
+            }
+        }
+
+        function showToast(msg, type='success') {
+            const c = document.getElementById('toast-container'); 
+            const t = document.createElement('div');
+            t.className = `flex items-center gap-2 p-3 text-sm rounded-lg shadow-lg border transform translate-x-full opacity-0 transition-all ${type==='error'?'bg-red-50 text-red-800 border-red-200':'bg-green-50 text-green-800 border-green-200'}`;
+            t.innerHTML = `<i data-lucide="${type==='error'?'alert-circle':'check-circle'}" class="w-4 h-4"></i> <span class="font-bold">${msg}</span>`;
+            c.appendChild(t); 
+            lucide.createIcons({root:t});
+            setTimeout(()=> { t.classList.remove('translate-x-full','opacity-0'); t.classList.add('translate-x-0','opacity-100'); }, 10);
+            setTimeout(()=> { 
+                t.classList.remove('translate-x-0','opacity-100'); 
+                t.classList.add('translate-x-full','opacity-0'); 
+                setTimeout(()=>t.remove(), 300);
+            }, 3000);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
